@@ -14,7 +14,7 @@ if str(ROOT) not in sys.path:
 from src.aspects import extract_aspects
 from src.data_loader import filter_by_length, load_pasted_reviews, load_sample_data, load_uploaded_csv
 from src.emotion import analyze_emotion_with_pipeline, load_emotion_pipeline
-from src.fake_review import analyze_fake_review_risk
+from src.fake_review import detect_fake_reviews
 from src.sentiment import analyze_sentiment_with_pipeline, load_sentiment_pipeline, sentiment_distribution
 from src.summarizer import summarize_pros_cons
 from src.trust_score import buy_avoid_suggestion, compute_trust_score
@@ -30,7 +30,7 @@ def run_analysis(records: tuple[tuple[str, float | None], ...], sensitivity: flo
     reviews = base_df["review"].tolist()
     sentiment_df = analyze_sentiment_with_pipeline(reviews, get_sentiment_model()).drop(columns=["review"])
     emotion_df = analyze_emotion_with_pipeline(reviews, get_emotion_model()).drop(columns=["review"])
-    fake_df = analyze_fake_review_risk(reviews, sensitivity=sensitivity).drop(columns=["review"])
+    fake_df = detect_fake_reviews(reviews, ratings=base_df["rating"].tolist(), sensitivity=sensitivity).drop(columns=["review"])
     analysis_df = pd.concat([base_df.reset_index(drop=True), sentiment_df, emotion_df, fake_df], axis=1)
     distribution_df = sentiment_distribution(analysis_df)
     return analysis_df, distribution_df
@@ -60,7 +60,7 @@ st.caption("Text-only product review trust analyzer")
 with st.sidebar:
     st.header("Input")
     input_mode = st.radio("Choose input mode", ["Paste text", "Upload CSV", "Use sample data"])
-    sensitivity = st.slider("Fake review sensitivity", 0.5, 2.0, 1.0, 0.1)
+    sensitivity = st.slider("Fake review sensitivity", 0.0, 1.0, 0.5, 0.05)
     min_length = st.slider("Minimum review length", 0, 250, 20, 5)
 
 raw_df = pd.DataFrame(columns=["review", "rating"])
@@ -136,10 +136,36 @@ try:
     )
 
     st.subheader("Fake Review Risk")
-    risk_counts = analysis_df["fake_risk_level"].value_counts().rename_axis("risk").reset_index(name="count")
+    high_risk_count = int((analysis_df["fake_risk_label"] == "High").sum())
+    medium_risk_count = int((analysis_df["fake_risk_label"] == "Medium").sum())
+    average_fake_risk = analysis_df["fake_risk_score"].mean()
+    fake_cols = st.columns(3)
+    fake_cols[0].metric("High Risk Reviews", high_risk_count)
+    fake_cols[1].metric("Medium Risk Reviews", medium_risk_count)
+    fake_cols[2].metric("Average Fake Risk", f"{average_fake_risk * 100:.1f}%")
+
+    risk_counts = analysis_df["fake_risk_label"].value_counts().rename_axis("risk").reset_index(name="count")
     fig = px.bar(risk_counts, x="risk", y="count", color="risk", text="count")
     fig.update_layout(showlegend=False)
     st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Top Suspicious Reviews")
+    suspicious_df = analysis_df.sort_values("fake_risk_score", ascending=False).head(5)
+    st.dataframe(
+        suspicious_df[
+            [
+                "review",
+                "rating",
+                "fake_risk_score",
+                "fake_risk_label",
+                "duplicate_score",
+                "anomaly_score",
+                "reasons",
+            ]
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
 
     with st.expander("Analysis Health"):
         st.write(
