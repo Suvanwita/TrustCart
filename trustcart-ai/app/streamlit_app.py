@@ -24,6 +24,234 @@ from src.utils import SAMPLE_DATA_PATH, save_analysis_artifact, validate_reviews
 
 st.set_page_config(page_title="TrustCart AI", page_icon="TC", layout="wide")
 
+CHART_COLORS = ["#ff4d8d", "#20e3b2", "#ffd166", "#9b5cff", "#00bbf9", "#ff8a3d"]
+
+
+def inject_styles() -> None:
+    st.markdown(
+        """
+        <style>
+            :root {
+                --tc-ink: #f8fbff;
+                --tc-muted: #a9b8d4;
+                --tc-line: rgba(157, 188, 255, .22);
+                --tc-surface: #121a2d;
+                --tc-soft: #17223a;
+                --tc-coral: #ff4d8d;
+                --tc-teal: #20e3b2;
+                --tc-mango: #ffd166;
+                --tc-violet: #9b5cff;
+                --tc-mint: #2ee59d;
+                --tc-sky: #00bbf9;
+                --tc-orange: #ff8a3d;
+            }
+
+            .stApp {
+                background:
+                    radial-gradient(circle at 18% 8%, rgba(255, 77, 141, .25), transparent 28%),
+                    radial-gradient(circle at 83% 0%, rgba(32, 227, 178, .18), transparent 24%),
+                    radial-gradient(circle at 74% 54%, rgba(155, 92, 255, .16), transparent 28%),
+                    linear-gradient(180deg, #080c18 0%, #0d1324 42%, #111827 100%);
+                color: var(--tc-ink);
+            }
+
+            .stApp, .stMarkdown, p, li, label, span, div {
+                color: var(--tc-ink);
+            }
+
+            [data-testid="stSidebar"] {
+                background:
+                    linear-gradient(180deg, #12081f 0%, #172554 48%, #052e2b 100%);
+            }
+
+            [data-testid="stSidebar"] * {
+                color: #f9fafb;
+            }
+
+            [data-testid="stSidebar"] [data-baseweb="radio"] label,
+            [data-testid="stSidebar"] .stSlider label,
+            [data-testid="stSidebar"] .stFileUploader label {
+                color: #f9fafb !important;
+            }
+
+            .block-container {
+                padding-top: 2.4rem;
+                max-width: 1240px;
+            }
+
+            h2, h3 {
+                letter-spacing: 0;
+                color: var(--tc-ink);
+            }
+
+            .tc-hero-card {
+                border: 1px solid rgba(32, 227, 178, .30);
+                background:
+                    linear-gradient(135deg, rgba(18, 26, 45, .98) 0%, rgba(49, 28, 79, .96) 48%, rgba(5, 52, 59, .96) 100%);
+                border-radius: 18px;
+                padding: 1.5rem;
+                margin: 1.75rem auto 1.6rem;
+                max-width: 1120px;
+                box-shadow: 0 18px 50px rgba(0, 0, 0, .32);
+            }
+
+            .tc-hero-kicker {
+                color: var(--tc-mango);
+                font-size: 12px;
+                font-weight: 800;
+                letter-spacing: .08em;
+                text-transform: uppercase;
+                margin-bottom: 8px;
+            }
+
+            .tc-hero-title {
+                color: transparent;
+                background: linear-gradient(90deg, var(--tc-coral), var(--tc-mango), var(--tc-teal), var(--tc-sky));
+                -webkit-background-clip: text;
+                background-clip: text;
+                font-size: clamp(2.1rem, 4vw, 3.6rem);
+                line-height: 1.02;
+                font-weight: 850;
+                margin: 0;
+            }
+
+            .tc-hero-subtitle {
+                color: #e9fbf8;
+                font-size: 1rem;
+                line-height: 1.45;
+                margin: .75rem 0 0;
+                max-width: 820px;
+            }
+
+            .tc-hero-note {
+                color: #a9f4e3;
+                font-size: .92rem;
+                margin: .6rem 0 0;
+            }
+
+            .tc-score-card {
+                border: 1px solid rgba(255, 77, 141, .35);
+                background: linear-gradient(135deg, rgba(18, 26, 45, .98) 0%, rgba(49, 28, 79, .96) 52%, rgba(5, 52, 59, .96) 100%);
+                border-radius: 8px;
+                padding: 24px;
+                box-shadow: 0 16px 40px rgba(255, 77, 141, 0.16);
+                min-height: 150px;
+            }
+
+            .tc-score-label {
+                color: var(--tc-muted);
+                font-size: 13px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: .08em;
+            }
+
+            .tc-score-value {
+                color: transparent;
+                background: linear-gradient(90deg, var(--tc-coral), var(--tc-orange), var(--tc-teal));
+                -webkit-background-clip: text;
+                background-clip: text;
+                font-size: 56px;
+                font-weight: 800;
+                line-height: 1;
+                margin-top: 8px;
+            }
+
+            .tc-card {
+                border: 1px solid var(--tc-line);
+                background: linear-gradient(135deg, rgba(18, 26, 45, .96) 0%, rgba(20, 34, 55, .96) 100%);
+                border-radius: 8px;
+                padding: 18px 20px;
+                margin: 8px 0 14px;
+                box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
+            }
+
+            .tc-badge {
+                display: inline-block;
+                border-radius: 999px;
+                padding: 8px 13px;
+                font-size: 13px;
+                font-weight: 750;
+                border: 1px solid transparent;
+            }
+
+            .tc-badge-strong { background: rgba(46, 229, 157, .15); color: #7dffc7; border-color: rgba(46, 229, 157, .46); }
+            .tc-badge-caution { background: rgba(255, 209, 102, .15); color: #ffe39a; border-color: rgba(255, 209, 102, .5); }
+            .tc-badge-mixed { background: rgba(155, 92, 255, .17); color: #d2b9ff; border-color: rgba(155, 92, 255, .5); }
+            .tc-badge-avoid { background: rgba(255, 77, 141, .16); color: #ffaccb; border-color: rgba(255, 77, 141, .55); }
+
+            .tc-list-card {
+                border: 1px solid rgba(0, 166, 166, .18);
+                border-radius: 8px;
+                background: linear-gradient(180deg, rgba(18, 26, 45, .96) 0%, rgba(10, 35, 45, .94) 100%);
+                padding: 16px 18px;
+                min-height: 190px;
+            }
+
+            .tc-list-card h4 {
+                margin: 0 0 10px;
+                font-size: 15px;
+            }
+
+            .tc-list-card ul {
+                margin: 0;
+                padding-left: 18px;
+            }
+
+            .tc-list-card li {
+                margin-bottom: 8px;
+                color: var(--tc-ink);
+            }
+
+            [data-testid="stMetric"] {
+                background: linear-gradient(135deg, rgba(18, 26, 45, .96) 0%, rgba(38, 30, 55, .94) 100%);
+                border: 1px solid rgba(255, 209, 102, .30);
+                border-radius: 8px;
+                padding: 14px 16px;
+                box-shadow: 0 6px 18px rgba(16, 24, 40, 0.05);
+            }
+
+            .stDataFrame {
+                border: 1px solid var(--tc-line);
+                border-radius: 8px;
+                overflow: hidden;
+            }
+
+            div[data-testid="stExpander"] {
+                border: 1px solid var(--tc-line);
+                border-radius: 8px;
+                background: var(--tc-surface);
+            }
+
+            .stTextArea textarea,
+            .stTextInput input,
+            [data-baseweb="select"] > div {
+                background: #0b1220 !important;
+                color: var(--tc-ink) !important;
+                border-color: rgba(32, 227, 178, .35) !important;
+            }
+
+            .stFileUploader {
+                border: 1px dashed rgba(32, 227, 178, .35);
+                border-radius: 8px;
+                padding: 8px;
+                background: rgba(18, 26, 45, .45);
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def decision_badge(label: str) -> str:
+    badge_class = {
+        "Strong Buy": "tc-badge-strong",
+        "Buy with Caution": "tc-badge-caution",
+        "Mixed / Compare Alternatives": "tc-badge-mixed",
+        "Avoid": "tc-badge-avoid",
+    }.get(label, "tc-badge-mixed")
+    return f'<span class="tc-badge {badge_class}">{label}</span>'
+
 
 @st.cache_data(show_spinner=False)
 def run_analysis(records: tuple[tuple[str, float | None], ...], sensitivity: float) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -66,28 +294,43 @@ def report_to_csv(report: dict) -> str:
     return pd.DataFrame(rows).to_csv(index=False)
 
 
-st.title("TrustCart AI")
-st.caption("Text-only product review trust analyzer")
+inject_styles()
+
+st.markdown(
+    """
+    <section class="tc-hero-card">
+        <div class="tc-hero-kicker">REVIEW TRUST INTELLIGENCE</div>
+        <h1 class="tc-hero-title">TrustCart AI</h1>
+        <p class="tc-hero-subtitle">
+            Local sentiment, fake-risk, aspect, and buy-or-avoid analysis.
+        </p>
+        <p class="tc-hero-note">
+            Analyze product reviews and generate a trust score in seconds.
+        </p>
+    </section>
+    """,
+    unsafe_allow_html=True,
+)
 
 with st.sidebar:
     st.header("Input")
-    input_mode = st.radio("Choose input mode", ["Paste text", "Upload CSV", "Use sample data"])
+    input_mode = st.radio("Review input source", ["Paste text", "Upload CSV", "Use sample data"])
     sensitivity = st.slider("Fake review sensitivity", 0.0, 1.0, 0.5, 0.05)
-    min_length = st.slider("Minimum review length", 0, 250, 20, 5)
+    min_length = st.slider("Minimum review length (characters)", 0, 250, 0, 5)
 
 raw_df = pd.DataFrame(columns=["review", "rating"])
 
 try:
     if input_mode == "Paste text":
         pasted = st.text_area(
-            "Paste reviews",
+            "Product reviews to analyze",
             height=220,
             placeholder="Paste one review per line...",
         )
         if pasted.strip():
             raw_df = load_pasted_reviews(pasted)
     elif input_mode == "Upload CSV":
-        uploaded = st.file_uploader("Upload a CSV with a review column and optional rating column", type=["csv"])
+        uploaded = st.file_uploader("Reviews CSV file (required: review, optional: rating)", type=["csv"])
         if uploaded is not None:
             raw_df = load_uploaded_csv(uploaded)
     else:
@@ -95,7 +338,7 @@ try:
 
     filtered_df = filter_by_length(raw_df, min_length)
     st.subheader("Parsed Reviews")
-    st.dataframe(filtered_df, use_container_width=True, hide_index=True)
+    st.dataframe(filtered_df, width="stretch", hide_index=True)
 
     validate_reviews(filtered_df)
 
@@ -104,9 +347,13 @@ try:
     aspects_df = aspects_result["aspects_table"]
     trust = calculate_trust_score(analysis_df, aspects_result, ratings=analysis_df["rating"].tolist())
     final_summary = generate_summary(trust, aspects_result, analysis_df)
-    suspicious_patterns = (
-        analysis_df.sort_values("fake_risk_score", ascending=False)["reasons"].head(5).dropna().astype(str).tolist()
-    )
+    suspicious_patterns = [
+        reason
+        for reason in analysis_df.sort_values("fake_risk_score", ascending=False)["reasons"].dropna().astype(str).tolist()
+        if reason != "no strong fake/spam signals"
+    ][:5]
+    if not suspicious_patterns:
+        suspicious_patterns = ["No major suspicious review pattern detected."]
     report = {
         "trust_score": trust["trust_score"],
         "trust_label": trust["trust_label"],
@@ -136,36 +383,27 @@ try:
     with score_col:
         st.markdown(
             f"""
-            <div style="border:1px solid #ddd;border-radius:8px;padding:22px 24px;">
-                <div style="font-size:15px;color:#666;">Trust Score</div>
-                <div style="font-size:48px;font-weight:700;line-height:1;">{trust['trust_score']:.1f}/100</div>
+            <div class="tc-score-card">
+                <div class="tc-score-label">Trust Score</div>
+                <div class="tc-score-value">{trust['trust_score']:.1f}/100</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
     with decision_col:
         st.markdown("**Final Decision**")
-        if trust["trust_label"] == "Strong Buy":
-            st.success(trust["trust_label"])
-        elif trust["trust_label"] == "Buy with Caution":
-            st.warning(trust["trust_label"])
-        elif trust["trust_label"] == "Mixed / Compare Alternatives":
-            st.info(trust["trust_label"])
-        else:
-            st.error(trust["trust_label"])
+        st.markdown(decision_badge(trust["trust_label"]), unsafe_allow_html=True)
 
     component_df = pd.DataFrame(
         [{"component": name.replace("_", " ").title(), "score": score} for name, score in trust["components"].items()]
     )
-    fig = px.bar(component_df, x="component", y="score", text="score")
+    fig = px.bar(component_df, x="component", y="score", text="score", color="component", color_discrete_sequence=CHART_COLORS)
     fig.update_yaxes(range=[0, 100])
     fig.update_layout(showlegend=False)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
-    if trust["warnings"]:
-        st.warning("Warnings: " + "; ".join(trust["warnings"]))
-    else:
-        st.success("No major trust warnings detected.")
+    warning_text = "; ".join(trust["warnings"]) if trust["warnings"] else "No major trust warnings detected."
+    st.markdown(f'<div class="tc-card"><strong>Warnings</strong><br>{warning_text}</div>', unsafe_allow_html=True)
 
     metric_cols = st.columns(3)
     metric_cols[0].metric("Reviews", len(analysis_df))
@@ -176,10 +414,17 @@ try:
     left, right = st.columns(2)
     with left:
         st.subheader("Sentiment Distribution")
-        fig = px.bar(distribution_df, x="sentiment", y="share", color="sentiment", text="percent")
+        fig = px.bar(
+            distribution_df,
+            x="sentiment",
+            y="share",
+            color="sentiment",
+            text="percent",
+            color_discrete_sequence=CHART_COLORS,
+        )
         fig.update_yaxes(tickformat=".0%")
         fig.update_layout(showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with right:
         st.subheader("Emotion Distribution")
@@ -187,15 +432,22 @@ try:
             analysis_df["emotion_label"].value_counts(normalize=True).rename_axis("emotion").reset_index(name="share")
         )
         emotion_counts["percent"] = (emotion_counts["share"] * 100).round(1)
-        fig = px.bar(emotion_counts, x="emotion", y="share", color="emotion", text="percent")
+        fig = px.bar(
+            emotion_counts,
+            x="emotion",
+            y="share",
+            color="emotion",
+            text="percent",
+            color_discrete_sequence=CHART_COLORS,
+        )
         fig.update_yaxes(tickformat=".0%")
         fig.update_layout(showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     st.subheader("Sentiment and Emotion")
     st.dataframe(
         analysis_df[["review", "sentiment_label", "sentiment_score", "emotion_label", "emotion_score"]],
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -209,9 +461,9 @@ try:
     fake_cols[2].metric("Average Fake Risk", f"{average_fake_risk * 100:.1f}%")
 
     risk_counts = analysis_df["fake_risk_label"].value_counts().rename_axis("risk").reset_index(name="count")
-    fig = px.bar(risk_counts, x="risk", y="count", color="risk", text="count")
+    fig = px.bar(risk_counts, x="risk", y="count", color="risk", text="count", color_discrete_sequence=CHART_COLORS)
     fig.update_layout(showlegend=False)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.subheader("Top Suspicious Reviews")
     suspicious_df = analysis_df.sort_values("fake_risk_score", ascending=False).head(5)
@@ -227,7 +479,7 @@ try:
                 "reasons",
             ]
         ],
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -245,22 +497,24 @@ try:
     if aspects_df.empty:
         st.info("No aspects detected.")
     else:
-        st.dataframe(aspects_df, use_container_width=True, hide_index=True)
+        st.dataframe(aspects_df, width="stretch", hide_index=True)
         aspect_cols = st.columns(2)
         with aspect_cols[0]:
-            st.markdown("**Top Positive Aspects**")
-            if aspects_result["positive_aspects"]:
-                for aspect in aspects_result["positive_aspects"]:
-                    st.success(aspect.title())
-            else:
-                st.info("No clearly positive aspects detected.")
+            positive_items = "".join(f"<li>{aspect.title()}</li>" for aspect in aspects_result["positive_aspects"])
+            if not positive_items:
+                positive_items = "<li>No clearly positive aspects detected.</li>"
+            st.markdown(
+                f'<div class="tc-list-card"><h4>Top Positive Aspects</h4><ul>{positive_items}</ul></div>',
+                unsafe_allow_html=True,
+            )
         with aspect_cols[1]:
-            st.markdown("**Top Negative Aspects**")
-            if aspects_result["negative_aspects"]:
-                for aspect in aspects_result["negative_aspects"]:
-                    st.warning(aspect.title())
-            else:
-                st.info("No clearly negative aspects detected.")
+            negative_items = "".join(f"<li>{aspect.title()}</li>" for aspect in aspects_result["negative_aspects"])
+            if not negative_items:
+                negative_items = "<li>No clearly negative aspects detected.</li>"
+            st.markdown(
+                f'<div class="tc-list-card"><h4>Top Negative Aspects</h4><ul>{negative_items}</ul></div>',
+                unsafe_allow_html=True,
+            )
 
         st.subheader("Aspect Review Samples")
         for row in aspects_df.head(6).itertuples(index=False):
@@ -277,38 +531,40 @@ try:
                     st.write("No positive or negative samples available for this aspect.")
 
     st.subheader("Final Report")
-    st.metric("Trust Score", f"{trust['trust_score']:.1f}/100", trust["trust_label"])
-    st.info(final_summary["verdict"])
+    st.markdown(
+        f"""
+        <div class="tc-card">
+            <div class="tc-score-label">Report Verdict</div>
+            <div style="margin:10px 0 12px;">{decision_badge(trust["trust_label"])}</div>
+            <div style="font-size:18px;font-weight:700;margin-bottom:6px;">{trust['trust_score']:.1f}/100</div>
+            <div style="color:var(--tc-muted);">{final_summary["verdict"]}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     report_cols = st.columns(2)
     with report_cols[0]:
-        st.markdown("**Pros**")
-        for pro in final_summary["pros"]:
-            st.success(pro)
-        st.markdown("**Who Should Buy**")
-        for item in final_summary["buy_for"]:
-            st.write(f"- {item}")
+        pros = "".join(f"<li>{item}</li>" for item in final_summary["pros"])
+        buy_for = "".join(f"<li>{item}</li>" for item in final_summary["buy_for"])
+        st.markdown(
+            f'<div class="tc-list-card"><h4>Pros</h4><ul>{pros}</ul><h4>Who Should Buy</h4><ul>{buy_for}</ul></div>',
+            unsafe_allow_html=True,
+        )
     with report_cols[1]:
-        st.markdown("**Cons**")
-        for con in final_summary["cons"]:
-            st.warning(con)
-        st.markdown("**Who Should Avoid**")
-        for item in final_summary["avoid_if"]:
-            st.write(f"- {item}")
+        cons = "".join(f"<li>{item}</li>" for item in final_summary["cons"])
+        avoid_if = "".join(f"<li>{item}</li>" for item in final_summary["avoid_if"])
+        st.markdown(
+            f'<div class="tc-list-card"><h4>Cons</h4><ul>{cons}</ul><h4>Who Should Avoid</h4><ul>{avoid_if}</ul></div>',
+            unsafe_allow_html=True,
+        )
 
     st.markdown("**Suspicious Review Patterns**")
-    for pattern in suspicious_patterns:
-        st.write(f"- {pattern}")
+    patterns = "".join(f"<li>{pattern}</li>" for pattern in suspicious_patterns)
+    st.markdown(f'<div class="tc-card"><ul>{patterns}</ul></div>', unsafe_allow_html=True)
 
     st.markdown("**Buy/Avoid Recommendation**")
-    if trust["trust_label"] == "Strong Buy":
-        st.success(trust["trust_label"])
-    elif trust["trust_label"] == "Buy with Caution":
-        st.warning(trust["trust_label"])
-    elif trust["trust_label"] == "Mixed / Compare Alternatives":
-        st.info(trust["trust_label"])
-    else:
-        st.error(trust["trust_label"])
+    st.markdown(decision_badge(trust["trust_label"]), unsafe_allow_html=True)
 
     download_cols = st.columns(2)
     download_cols[0].download_button(
@@ -327,7 +583,7 @@ try:
     st.caption(f"Latest analysis saved to {artifact_path.relative_to(ROOT)}")
 
     st.subheader("Detailed Review Analysis")
-    st.dataframe(analysis_df, use_container_width=True, hide_index=True)
+    st.dataframe(analysis_df, width="stretch", hide_index=True)
 
 except ValueError as exc:
     st.info(str(exc))

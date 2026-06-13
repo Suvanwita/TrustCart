@@ -17,7 +17,6 @@ GENERIC_PHRASES = {
     "must buy",
     "perfect product",
     "trust me",
-    "value for money",
     "worst ever",
     "worst product",
 }
@@ -123,13 +122,15 @@ def _anomaly_scores(features: pd.DataFrame) -> np.ndarray:
 
 
 def _linguistic_risk(row: pd.Series) -> float:
-    short_review = 1.0 if row["review_length"] < 12 else 0.0
+    very_short_review = 1.0 if row["review_length"] < 6 else 0.0
+    brief_review = 1.0 if 6 <= row["review_length"] < 9 else 0.0
     very_long_review = 1.0 if row["review_length"] > 220 else 0.0
     exclamation_signal = min(row["exclamation_count"] / 5, 1)
     phrase_signal = min(row["generic_phrase_count"] / 2, 1)
 
     risk = (
-        short_review * 0.16
+        very_short_review * 0.18
+        + brief_review * 0.06
         + very_long_review * 0.06
         + exclamation_signal * 0.14
         + row["uppercase_ratio"] * 0.16
@@ -150,8 +151,10 @@ def _risk_label(score: float) -> str:
 
 def _reasons(feature_row: pd.Series, duplicate_score: float, anomaly_score: float) -> str:
     reasons: list[str] = []
-    if feature_row["review_length"] < 12:
+    if feature_row["review_length"] < 6:
         reasons.append("very short review")
+    elif feature_row["review_length"] < 9:
+        reasons.append("brief review")
     if feature_row["exclamation_count"] >= 3:
         reasons.append("many exclamation marks")
     if feature_row["uppercase_ratio"] >= 0.22:

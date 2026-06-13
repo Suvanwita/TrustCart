@@ -12,7 +12,7 @@ ASPECT_GROUPS = {
     "battery": {"battery", "batteries", "charging", "charge", "charger", "power", "backup"},
     "camera": {"camera", "photo", "photos", "picture", "pictures", "video", "lens", "selfie"},
     "display": {"display", "screen", "brightness", "resolution", "touch", "panel"},
-    "performance": {"performance", "fast", "slow", "speed", "lag", "lags", "processor", "ram", "smooth"},
+    "performance": {"performance", "lag", "lags", "processor", "ram", "smooth", "responsive"},
     "heating": {"heat", "heating", "hot", "warm", "overheat", "overheating"},
     "delivery": {"delivery", "delivered", "shipping", "shipment", "courier", "late", "arrived"},
     "packaging": {"packaging", "package", "packed", "box", "seal", "sealed", "opened"},
@@ -132,15 +132,14 @@ def _clean_tokens(text: str) -> set[str]:
 
 
 def _mentioned_aspects(text: str, keyword_aspects: set[str]) -> set[str]:
-    lowered = text.lower()
     tokens = _clean_tokens(text)
     mentioned = set()
 
     for aspect, terms in ASPECT_GROUPS.items():
-        if aspect in keyword_aspects and any(term in tokens or term in lowered for term in terms):
+        if aspect in keyword_aspects and tokens & terms:
             mentioned.add(aspect)
             continue
-        if any(term in tokens or term in lowered for term in terms):
+        if tokens & terms:
             mentioned.add(aspect)
 
     return mentioned
