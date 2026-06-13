@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -16,7 +17,7 @@ from src.data_loader import filter_by_length, load_pasted_reviews, load_sample_d
 from src.emotion import analyze_emotion_with_pipeline, load_emotion_pipeline
 from src.fake_review import detect_fake_reviews
 from src.sentiment import analyze_sentiment_with_pipeline, load_sentiment_pipeline, sentiment_distribution
-from src.summarizer import summarize_pros_cons
+from src.summarizer import generate_summary
 from src.trust_score import calculate_trust_score
 from src.utils import SAMPLE_DATA_PATH, save_analysis_artifact, validate_reviews
 
@@ -52,6 +53,17 @@ def dataframe_records(df: pd.DataFrame) -> tuple[tuple[str, float | None], ...]:
         rating = None if pd.isna(row.rating) else float(row.rating)
         records.append((str(row.review), rating))
     return tuple(records)
+
+
+def report_to_csv(report: dict) -> str:
+    rows = []
+    for key, value in report.items():
+        if isinstance(value, list):
+            value = " | ".join(str(item) for item in value)
+        elif isinstance(value, dict):
+            value = json.dumps(value)
+        rows.append({"section": key, "value": value})
+    return pd.DataFrame(rows).to_csv(index=False)
 
 
 st.title("TrustCart AI")
@@ -91,14 +103,30 @@ try:
     aspects_result = extract_aspects(analysis_df)
     aspects_df = aspects_result["aspects_table"]
     trust = calculate_trust_score(analysis_df, aspects_result, ratings=analysis_df["rating"].tolist())
-    summaries = summarize_pros_cons(analysis_df)
+    final_summary = generate_summary(trust, aspects_result, analysis_df)
+    suspicious_patterns = (
+        analysis_df.sort_values("fake_risk_score", ascending=False)["reasons"].head(5).dropna().astype(str).tolist()
+    )
+    report = {
+        "trust_score": trust["trust_score"],
+        "trust_label": trust["trust_label"],
+        "verdict": final_summary["verdict"],
+        "pros": final_summary["pros"],
+        "cons": final_summary["cons"],
+        "suspicious_review_patterns": suspicious_patterns,
+        "buy_for": final_summary["buy_for"],
+        "avoid_if": final_summary["avoid_if"],
+        "warnings": trust["warnings"],
+        "components": trust["components"],
+    }
     artifact_path = save_analysis_artifact(
         {
             "analysis": analysis_df,
             "sentiment_distribution": distribution_df,
             "aspects": aspects_result,
             "trust": trust,
-            "summaries": summaries,
+            "summaries": final_summary,
+            "report": report,
             "suggestion": trust["trust_label"],
         }
     )
@@ -248,14 +276,54 @@ try:
                 if not row.positive_review_examples and not row.negative_review_examples:
                     st.write("No positive or negative samples available for this aspect.")
 
-    st.subheader("Pros and Cons Summary")
-    pro_col, con_col = st.columns(2)
-    pro_col.success(summaries["pros"])
-    con_col.warning(summaries["cons"])
-    st.info(summaries["summary"])
+    st.subheader("Final Report")
+    st.metric("Trust Score", f"{trust['trust_score']:.1f}/100", trust["trust_label"])
+    st.info(final_summary["verdict"])
 
-    st.subheader("Final Suggestion")
-    st.write(trust["trust_label"])
+    report_cols = st.columns(2)
+    with report_cols[0]:
+        st.markdown("**Pros**")
+        for pro in final_summary["pros"]:
+            st.success(pro)
+        st.markdown("**Who Should Buy**")
+        for item in final_summary["buy_for"]:
+            st.write(f"- {item}")
+    with report_cols[1]:
+        st.markdown("**Cons**")
+        for con in final_summary["cons"]:
+            st.warning(con)
+        st.markdown("**Who Should Avoid**")
+        for item in final_summary["avoid_if"]:
+            st.write(f"- {item}")
+
+    st.markdown("**Suspicious Review Patterns**")
+    for pattern in suspicious_patterns:
+        st.write(f"- {pattern}")
+
+    st.markdown("**Buy/Avoid Recommendation**")
+    if trust["trust_label"] == "Strong Buy":
+        st.success(trust["trust_label"])
+    elif trust["trust_label"] == "Buy with Caution":
+        st.warning(trust["trust_label"])
+    elif trust["trust_label"] == "Mixed / Compare Alternatives":
+        st.info(trust["trust_label"])
+    else:
+        st.error(trust["trust_label"])
+
+    download_cols = st.columns(2)
+    download_cols[0].download_button(
+        "Download Report JSON",
+        data=json.dumps(report, indent=2),
+        file_name="trustcart_report.json",
+        mime="application/json",
+    )
+    download_cols[1].download_button(
+        "Download Report CSV",
+        data=report_to_csv(report),
+        file_name="trustcart_report.csv",
+        mime="text/csv",
+    )
+
     st.caption(f"Latest analysis saved to {artifact_path.relative_to(ROOT)}")
 
     st.subheader("Detailed Review Analysis")
