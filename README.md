@@ -40,7 +40,7 @@ No paid APIs are required. Optional Hugging Face models run locally when availab
    - Who should avoid
    - JSON and CSV export
 
-## Free Tech Stack
+## Tech Stack
 
 - Streamlit
 - pandas
