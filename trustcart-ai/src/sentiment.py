@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from functools import lru_cache
-
 import numpy as np
 import pandas as pd
 
@@ -50,8 +48,12 @@ NEGATIVE_WORDS = {
 }
 
 
-@lru_cache(maxsize=1)
-def _sentiment_pipeline():
+def load_sentiment_pipeline():
+    """Load a lightweight Hugging Face sentiment pipeline.
+
+    Returns None when transformers/model loading is unavailable so callers can
+    fall back without breaking the app.
+    """
     try:
         from transformers import pipeline
 
@@ -77,9 +79,8 @@ def _lexicon_sentiment(text: str) -> tuple[str, float]:
     return label, confidence
 
 
-def analyze_sentiment(reviews: list[str]) -> pd.DataFrame:
-    """Classify each review as positive, neutral, or negative."""
-    model = _sentiment_pipeline()
+def analyze_sentiment_with_pipeline(reviews: list[str], model=None) -> pd.DataFrame:
+    """Classify reviews using a provided pipeline or the local rule fallback."""
     rows = []
 
     if model:
@@ -91,18 +92,24 @@ def analyze_sentiment(reviews: list[str]) -> pd.DataFrame:
                 score = float(pred["score"])
                 if score < 0.62:
                     label = "neutral"
-                rows.append({"review": review, "sentiment": label, "sentiment_confidence": score})
+                rows.append({"review": review, "sentiment_label": label, "sentiment_score": score})
             return pd.DataFrame(rows)
         except Exception:
             pass
 
     for review in reviews:
         label, score = _lexicon_sentiment(review)
-        rows.append({"review": review, "sentiment": label, "sentiment_confidence": score})
+        rows.append({"review": review, "sentiment_label": label, "sentiment_score": score})
     return pd.DataFrame(rows)
 
 
+def analyze_sentiment(reviews: list[str]) -> pd.DataFrame:
+    """Return sentiment labels and scores for each review."""
+    return analyze_sentiment_with_pipeline(reviews, load_sentiment_pipeline())
+
+
 def sentiment_distribution(sentiment_df: pd.DataFrame) -> pd.DataFrame:
-    counts = sentiment_df["sentiment"].value_counts(normalize=True).rename_axis("sentiment").reset_index(name="share")
+    label_col = "sentiment_label" if "sentiment_label" in sentiment_df.columns else "sentiment"
+    counts = sentiment_df[label_col].value_counts(normalize=True).rename_axis("sentiment").reset_index(name="share")
     counts["percent"] = np.round(counts["share"] * 100, 1)
     return counts

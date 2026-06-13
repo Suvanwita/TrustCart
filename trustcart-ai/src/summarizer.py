@@ -49,8 +49,9 @@ def summarize_pros_cons(analysis_df: pd.DataFrame) -> dict:
     if analysis_df.empty:
         return {"pros": "No reviews available.", "cons": "No reviews available.", "summary": "No review text to analyze."}
 
-    positive_reviews = analysis_df.loc[analysis_df["sentiment"] == "positive", "review"].tolist()
-    negative_reviews = analysis_df.loc[analysis_df["sentiment"] == "negative", "review"].tolist()
+    sentiment_col = "sentiment_label" if "sentiment_label" in analysis_df.columns else "sentiment"
+    positive_reviews = analysis_df.loc[analysis_df[sentiment_col] == "positive", "review"].tolist()
+    negative_reviews = analysis_df.loc[analysis_df[sentiment_col] == "negative", "review"].tolist()
     all_reviews = analysis_df["review"].tolist()
 
     model = _summarization_pipeline()

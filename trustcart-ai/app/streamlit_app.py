@@ -13,9 +13,9 @@ if str(ROOT) not in sys.path:
 
 from src.aspects import extract_aspects
 from src.data_loader import filter_by_length, load_pasted_reviews, load_sample_data, load_uploaded_csv
-from src.emotion import analyze_emotions
+from src.emotion import analyze_emotion_with_pipeline, load_emotion_pipeline
 from src.fake_review import analyze_fake_review_risk
-from src.sentiment import analyze_sentiment, sentiment_distribution
+from src.sentiment import analyze_sentiment_with_pipeline, load_sentiment_pipeline, sentiment_distribution
 from src.summarizer import summarize_pros_cons
 from src.trust_score import buy_avoid_suggestion, compute_trust_score
 from src.utils import SAMPLE_DATA_PATH, save_analysis_artifact, validate_reviews
@@ -28,12 +28,22 @@ st.set_page_config(page_title="TrustCart AI", page_icon="TC", layout="wide")
 def run_analysis(records: tuple[tuple[str, float | None], ...], sensitivity: float) -> tuple[pd.DataFrame, pd.DataFrame]:
     base_df = pd.DataFrame(records, columns=["review", "rating"])
     reviews = base_df["review"].tolist()
-    sentiment_df = analyze_sentiment(reviews).drop(columns=["review"])
-    emotion_df = analyze_emotions(reviews).drop(columns=["review"])
+    sentiment_df = analyze_sentiment_with_pipeline(reviews, get_sentiment_model()).drop(columns=["review"])
+    emotion_df = analyze_emotion_with_pipeline(reviews, get_emotion_model()).drop(columns=["review"])
     fake_df = analyze_fake_review_risk(reviews, sensitivity=sensitivity).drop(columns=["review"])
     analysis_df = pd.concat([base_df.reset_index(drop=True), sentiment_df, emotion_df, fake_df], axis=1)
     distribution_df = sentiment_distribution(analysis_df)
     return analysis_df, distribution_df
+
+
+@st.cache_resource(show_spinner=False)
+def get_sentiment_model():
+    return load_sentiment_pipeline()
+
+
+@st.cache_resource(show_spinner=False)
+def get_emotion_model():
+    return load_emotion_pipeline()
 
 
 def dataframe_records(df: pd.DataFrame) -> tuple[tuple[str, float | None], ...]:
@@ -102,16 +112,44 @@ try:
     left, right = st.columns(2)
     with left:
         st.subheader("Sentiment Distribution")
-        fig = px.pie(distribution_df, names="sentiment", values="share", hole=0.45)
-        fig.update_traces(textinfo="percent+label")
+        fig = px.bar(distribution_df, x="sentiment", y="share", color="sentiment", text="percent")
+        fig.update_yaxes(tickformat=".0%")
+        fig.update_layout(showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
 
     with right:
-        st.subheader("Fake Review Risk")
-        risk_counts = analysis_df["fake_risk_level"].value_counts().rename_axis("risk").reset_index(name="count")
-        fig = px.bar(risk_counts, x="risk", y="count", color="risk", text="count")
+        st.subheader("Emotion Distribution")
+        emotion_counts = (
+            analysis_df["emotion_label"].value_counts(normalize=True).rename_axis("emotion").reset_index(name="share")
+        )
+        emotion_counts["percent"] = (emotion_counts["share"] * 100).round(1)
+        fig = px.bar(emotion_counts, x="emotion", y="share", color="emotion", text="percent")
+        fig.update_yaxes(tickformat=".0%")
         fig.update_layout(showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Sentiment and Emotion")
+    st.dataframe(
+        analysis_df[["review", "sentiment_label", "sentiment_score", "emotion_label", "emotion_score"]],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    st.subheader("Fake Review Risk")
+    risk_counts = analysis_df["fake_risk_level"].value_counts().rename_axis("risk").reset_index(name="count")
+    fig = px.bar(risk_counts, x="risk", y="count", color="risk", text="count")
+    fig.update_layout(showlegend=False)
+    st.plotly_chart(fig, use_container_width=True)
+
+    with st.expander("Analysis Health"):
+        st.write(
+            "Sentiment model:",
+            "Hugging Face pipeline" if get_sentiment_model() is not None else "rule-based fallback",
+        )
+        st.write(
+            "Emotion model:",
+            "Hugging Face pipeline" if get_emotion_model() is not None else "rule-based fallback",
+        )
 
     st.subheader("Common Product Aspects")
     if aspects_df.empty:

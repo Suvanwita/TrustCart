@@ -15,8 +15,9 @@ def compute_trust_score(analysis_df: pd.DataFrame) -> dict:
             "average_rating": None,
         }
 
-    positive_share = (analysis_df["sentiment"] == "positive").mean()
-    negative_share = (analysis_df["sentiment"] == "negative").mean()
+    sentiment_col = "sentiment_label" if "sentiment_label" in analysis_df.columns else "sentiment"
+    positive_share = (analysis_df[sentiment_col] == "positive").mean()
+    negative_share = (analysis_df[sentiment_col] == "negative").mean()
     average_fake_risk = analysis_df["fake_risk"].mean()
     average_rating = analysis_df["rating"].dropna().mean() if "rating" in analysis_df else np.nan
     rating_component = 0.5

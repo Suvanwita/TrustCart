@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from functools import lru_cache
-
 import pandas as pd
 
 
@@ -14,8 +12,8 @@ EMOTION_KEYWORDS = {
 }
 
 
-@lru_cache(maxsize=1)
-def _emotion_pipeline():
+def load_emotion_pipeline():
+    """Load a lightweight Hugging Face emotion pipeline when available."""
     try:
         from transformers import pipeline
 
@@ -33,8 +31,8 @@ def _keyword_emotion(text: str) -> tuple[str, float]:
     return emotion, min(0.95, 0.55 + hits * 0.15)
 
 
-def analyze_emotions(reviews: list[str]) -> pd.DataFrame:
-    model = _emotion_pipeline()
+def analyze_emotion_with_pipeline(reviews: list[str], model=None) -> pd.DataFrame:
+    """Classify review emotions using a provided pipeline or safe fallback."""
     rows = []
 
     if model:
@@ -45,8 +43,8 @@ def analyze_emotions(reviews: list[str]) -> pd.DataFrame:
                 rows.append(
                     {
                         "review": review,
-                        "emotion": pred["label"].lower(),
-                        "emotion_confidence": float(pred["score"]),
+                        "emotion_label": pred["label"].lower(),
+                        "emotion_score": float(pred["score"]),
                     }
                 )
             return pd.DataFrame(rows)
@@ -55,5 +53,15 @@ def analyze_emotions(reviews: list[str]) -> pd.DataFrame:
 
     for review in reviews:
         emotion, score = _keyword_emotion(review)
-        rows.append({"review": review, "emotion": emotion, "emotion_confidence": score})
+        rows.append({"review": review, "emotion_label": emotion, "emotion_score": score})
     return pd.DataFrame(rows)
+
+
+def analyze_emotion(reviews: list[str]) -> pd.DataFrame:
+    """Return emotion labels and scores for each review."""
+    return analyze_emotion_with_pipeline(reviews, load_emotion_pipeline())
+
+
+def analyze_emotions(reviews: list[str]) -> pd.DataFrame:
+    """Backward-compatible alias for older app code."""
+    return analyze_emotion(reviews)
