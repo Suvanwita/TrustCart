@@ -89,14 +89,15 @@ try:
 
     analysis_df, distribution_df = run_analysis(dataframe_records(filtered_df), sensitivity)
     trust = compute_trust_score(analysis_df)
-    aspects_df = extract_aspects(analysis_df["review"].tolist(), top_n=10)
+    aspects_result = extract_aspects(analysis_df)
+    aspects_df = aspects_result["aspects_table"]
     summaries = summarize_pros_cons(analysis_df)
     suggestion = buy_avoid_suggestion(trust["score"], trust["average_fake_risk"], trust["negative_share"])
     artifact_path = save_analysis_artifact(
         {
             "analysis": analysis_df,
             "sentiment_distribution": distribution_df,
-            "aspects": aspects_df,
+            "aspects": aspects_result,
             "trust": trust,
             "summaries": summaries,
             "suggestion": suggestion,
@@ -182,6 +183,35 @@ try:
         st.info("No aspects detected.")
     else:
         st.dataframe(aspects_df, use_container_width=True, hide_index=True)
+        aspect_cols = st.columns(2)
+        with aspect_cols[0]:
+            st.markdown("**Top Positive Aspects**")
+            if aspects_result["positive_aspects"]:
+                for aspect in aspects_result["positive_aspects"]:
+                    st.success(aspect.title())
+            else:
+                st.info("No clearly positive aspects detected.")
+        with aspect_cols[1]:
+            st.markdown("**Top Negative Aspects**")
+            if aspects_result["negative_aspects"]:
+                for aspect in aspects_result["negative_aspects"]:
+                    st.warning(aspect.title())
+            else:
+                st.info("No clearly negative aspects detected.")
+
+        st.subheader("Aspect Review Samples")
+        for row in aspects_df.head(6).itertuples(index=False):
+            with st.expander(f"{row.aspect.title()} ({row.mention_count} mentions)"):
+                if row.positive_review_examples:
+                    st.markdown("**Positive examples**")
+                    for example in str(row.positive_review_examples).split(" | "):
+                        st.write(example)
+                if row.negative_review_examples:
+                    st.markdown("**Negative examples**")
+                    for example in str(row.negative_review_examples).split(" | "):
+                        st.write(example)
+                if not row.positive_review_examples and not row.negative_review_examples:
+                    st.write("No positive or negative samples available for this aspect.")
 
     st.subheader("Pros and Cons Summary")
     pro_col, con_col = st.columns(2)
