@@ -209,6 +209,60 @@ def inject_styles() -> None:
                 color: var(--tc-ink);
             }
 
+            .tc-audit-card {
+                border: 1px solid rgba(32, 227, 178, .28);
+                background:
+                    linear-gradient(135deg, rgba(18, 26, 45, .98) 0%, rgba(26, 22, 52, .97) 52%, rgba(7, 43, 49, .97) 100%);
+                border-radius: 18px;
+                padding: 22px;
+                margin: 8px 0 18px;
+                box-shadow: 0 18px 48px rgba(0, 0, 0, .28);
+            }
+
+            .tc-audit-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 14px;
+                margin-top: 16px;
+            }
+
+            .tc-audit-section {
+                border: 1px solid rgba(157, 188, 255, .18);
+                border-radius: 14px;
+                padding: 16px;
+                background: rgba(8, 12, 24, .42);
+            }
+
+            .tc-audit-section h4 {
+                margin: 0 0 10px;
+                color: var(--tc-mango);
+                font-size: 14px;
+                letter-spacing: .06em;
+                text-transform: uppercase;
+            }
+
+            .tc-audit-section p {
+                color: var(--tc-ink);
+                margin: 0;
+                line-height: 1.45;
+            }
+
+            .tc-audit-section ul {
+                margin: 0;
+                padding-left: 18px;
+            }
+
+            .tc-audit-section li {
+                margin-bottom: 8px;
+                color: var(--tc-ink);
+            }
+
+            @media (max-width: 760px) {
+                .tc-audit-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+
             [data-testid="stMetric"] {
                 background: linear-gradient(135deg, rgba(18, 26, 45, .96) 0%, rgba(38, 30, 55, .94) 100%);
                 border: 1px solid rgba(255, 209, 102, .30);
@@ -548,44 +602,47 @@ try:
                     st.write("No positive or negative samples available for this aspect.")
 
     st.subheader("Final Report")
+    pros = "".join(f"<li>{item}</li>" for item in final_summary["pros"])
+    cons = "".join(f"<li>{item}</li>" for item in final_summary["cons"])
+    buy_for = "".join(f"<li>{item}</li>" for item in final_summary["buy_for"])
+    avoid_if = "".join(f"<li>{item}</li>" for item in final_summary["avoid_if"])
+    patterns = "".join(f"<li>{pattern}</li>" for pattern in suspicious_patterns)
+    final_confidence_items = "".join(f"<li>{note}</li>" for note in trust["confidence_notes"])
+    warnings_items = "".join(f"<li>{warning}</li>" for warning in trust["warnings"]) or "<li>No major trust warnings detected.</li>"
+    evidence_items = pros + final_confidence_items
+    risk_items = cons + patterns + warnings_items
+    recommendation_items = buy_for + avoid_if
     st.markdown(
         f"""
-        <div class="tc-card">
-            <div class="tc-score-label">Report Verdict</div>
-            <div style="margin:10px 0 12px;">{decision_badge(trust["trust_label"])}</div>
-            <div style="font-size:18px;font-weight:700;margin-bottom:6px;">{trust['trust_score']:.1f}/100</div>
-            <div style="color:var(--tc-muted);">{final_summary["verdict"]}</div>
+        <div class="tc-audit-card">
+            <div class="tc-score-label">TrustCart Review Audit</div>
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:10px;">
+                {decision_badge(trust["trust_label"])}
+                <div style="font-size:24px;font-weight:800;">{trust['trust_score']:.1f}/100</div>
+            </div>
+            <div class="tc-audit-grid">
+                <section class="tc-audit-section">
+                    <h4>Verdict</h4>
+                    <p>{final_summary["verdict"]}</p>
+                </section>
+                <section class="tc-audit-section">
+                    <h4>Evidence</h4>
+                    <ul>{evidence_items}</ul>
+                </section>
+                <section class="tc-audit-section">
+                    <h4>Risks</h4>
+                    <ul>{risk_items}</ul>
+                </section>
+                <section class="tc-audit-section">
+                    <h4>Recommendation</h4>
+                    <div style="margin-bottom:10px;">{decision_badge(trust["trust_label"])}</div>
+                    <ul>{recommendation_items}</ul>
+                </section>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-
-    report_cols = st.columns(2)
-    with report_cols[0]:
-        pros = "".join(f"<li>{item}</li>" for item in final_summary["pros"])
-        buy_for = "".join(f"<li>{item}</li>" for item in final_summary["buy_for"])
-        st.markdown(
-            f'<div class="tc-list-card"><h4>Pros</h4><ul>{pros}</ul><h4>Who Should Buy</h4><ul>{buy_for}</ul></div>',
-            unsafe_allow_html=True,
-        )
-    with report_cols[1]:
-        cons = "".join(f"<li>{item}</li>" for item in final_summary["cons"])
-        avoid_if = "".join(f"<li>{item}</li>" for item in final_summary["avoid_if"])
-        st.markdown(
-            f'<div class="tc-list-card"><h4>Cons</h4><ul>{cons}</ul><h4>Who Should Avoid</h4><ul>{avoid_if}</ul></div>',
-            unsafe_allow_html=True,
-        )
-
-    st.markdown("**Suspicious Review Patterns**")
-    patterns = "".join(f"<li>{pattern}</li>" for pattern in suspicious_patterns)
-    st.markdown(f'<div class="tc-card"><ul>{patterns}</ul></div>', unsafe_allow_html=True)
-
-    st.markdown("**Confidence Notes**")
-    final_confidence_items = "".join(f"<li>{note}</li>" for note in trust["confidence_notes"])
-    st.markdown(f'<div class="tc-card"><ul>{final_confidence_items}</ul></div>', unsafe_allow_html=True)
-
-    st.markdown("**Buy/Avoid Recommendation**")
-    st.markdown(decision_badge(trust["trust_label"]), unsafe_allow_html=True)
 
     download_cols = st.columns(2)
     download_cols[0].download_button(
