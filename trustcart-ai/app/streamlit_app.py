@@ -364,6 +364,7 @@ try:
         "buy_for": final_summary["buy_for"],
         "avoid_if": final_summary["avoid_if"],
         "warnings": trust["warnings"],
+        "confidence_notes": trust["confidence_notes"],
         "components": trust["components"],
     }
     artifact_path = save_analysis_artifact(
@@ -404,6 +405,11 @@ try:
 
     warning_text = "; ".join(trust["warnings"]) if trust["warnings"] else "No major trust warnings detected."
     st.markdown(f'<div class="tc-card"><strong>Warnings</strong><br>{warning_text}</div>', unsafe_allow_html=True)
+    confidence_items = "".join(f"<li>{note}</li>" for note in trust["confidence_notes"])
+    st.markdown(
+        f'<div class="tc-card"><strong>Why this score?</strong><ul>{confidence_items}</ul></div>',
+        unsafe_allow_html=True,
+    )
 
     metric_cols = st.columns(3)
     metric_cols[0].metric("Reviews", len(analysis_df))
@@ -562,6 +568,10 @@ try:
     st.markdown("**Suspicious Review Patterns**")
     patterns = "".join(f"<li>{pattern}</li>" for pattern in suspicious_patterns)
     st.markdown(f'<div class="tc-card"><ul>{patterns}</ul></div>', unsafe_allow_html=True)
+
+    st.markdown("**Confidence Notes**")
+    final_confidence_items = "".join(f"<li>{note}</li>" for note in trust["confidence_notes"])
+    st.markdown(f'<div class="tc-card"><ul>{final_confidence_items}</ul></div>', unsafe_allow_html=True)
 
     st.markdown("**Buy/Avoid Recommendation**")
     st.markdown(decision_badge(trust["trust_label"]), unsafe_allow_html=True)

@@ -89,6 +89,59 @@ def _authenticity_score(reviews_df: pd.DataFrame) -> tuple[float, float, float]:
     return float(np.clip(score, 0, 100)), average_fake_risk, average_duplicate_score
 
 
+def _negative_aspect_phrase(aspects_result: dict) -> str:
+    negative_aspects = [str(aspect).lower() for aspect in aspects_result.get("negative_aspects", [])[:3]]
+    if not negative_aspects:
+        return "Negative aspects dominate"
+    if len(negative_aspects) == 1:
+        return f"Negative {negative_aspects[0]} aspect dominates"
+    return f"Negative {'/'.join(negative_aspects)} aspects dominate"
+
+
+def _confidence_notes(
+    positive_sentiment: float,
+    aspect_quality: float,
+    rating_consistency: float,
+    review_volume: float,
+    authenticity: float,
+    average_fake_risk: float,
+    average_duplicate_score: float,
+    negative_aspects_dominate: bool,
+    aspects_result: dict,
+) -> list[str]:
+    notes: list[str] = []
+
+    if positive_sentiment >= 70 and review_volume < 55:
+        notes.append("Good sentiment but weak review volume")
+    elif positive_sentiment >= 70:
+        notes.append("Good sentiment supports the score")
+    elif positive_sentiment < 45:
+        notes.append("Weak sentiment pulls the score down")
+
+    if average_fake_risk >= 35:
+        notes.append("High fake-risk phrases detected")
+    elif authenticity >= 75:
+        notes.append("Low fake-risk signals support authenticity")
+
+    if negative_aspects_dominate or aspect_quality < 45:
+        notes.append(_negative_aspect_phrase(aspects_result))
+    elif aspect_quality >= 70:
+        notes.append("Positive product aspects support the score")
+
+    if rating_consistency < 55:
+        notes.append("Ratings and review sentiment are not fully consistent")
+    elif rating_consistency >= 75:
+        notes.append("Ratings are broadly consistent with review sentiment")
+
+    if average_duplicate_score >= 55:
+        notes.append("Duplicate-like review patterns reduce confidence")
+
+    if review_volume < 45:
+        notes.append("Too few reviews to be highly confident")
+
+    return notes[:6] or ["Balanced signals; no single factor dominates the score"]
+
+
 def calculate_trust_score(
     reviews_df: pd.DataFrame,
     aspects_result: dict,
@@ -106,6 +159,7 @@ def calculate_trust_score(
                 "authenticity_score": 0.0,
             },
             "warnings": ["too few reviews"],
+            "confidence_notes": ["Too few reviews to be highly confident"],
         }
 
     positive_sentiment = _positive_sentiment_score(reviews_df)
@@ -135,6 +189,18 @@ def calculate_trust_score(
     if len(reviews_df) < 5:
         warnings.append("too few reviews")
 
+    confidence_notes = _confidence_notes(
+        positive_sentiment=positive_sentiment,
+        aspect_quality=aspect_quality,
+        rating_consistency=rating_consistency,
+        review_volume=review_volume,
+        authenticity=authenticity,
+        average_fake_risk=average_fake_risk,
+        average_duplicate_score=average_duplicate_score,
+        negative_aspects_dominate=negative_aspects_dominate,
+        aspects_result=aspects_result,
+    )
+
     return {
         "trust_score": trust_score,
         "trust_label": _label(trust_score),
@@ -146,6 +212,7 @@ def calculate_trust_score(
             "authenticity_score": round(authenticity, 2),
         },
         "warnings": warnings,
+        "confidence_notes": confidence_notes,
     }
 
 

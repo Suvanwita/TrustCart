@@ -76,6 +76,7 @@ def _template_summary(trust_result: dict, aspects_result: dict, reviews_df: pd.D
     trust_score = float(trust_result.get("trust_score", 0))
     trust_label = str(trust_result.get("trust_label", "Avoid"))
     warnings = list(trust_result.get("warnings", []))
+    confidence_notes = list(trust_result.get("confidence_notes", []))
     sentiments = _sentiment_counts(reviews_df)
     positives = _positive_aspect_names(aspects_result)
     negatives = _negative_aspect_names(aspects_result)
@@ -108,6 +109,8 @@ def _template_summary(trust_result: dict, aspects_result: dict, reviews_df: pd.D
         cons.append("Negative sentiment is comparable to or stronger than positive sentiment.")
     if warnings:
         cons.append("Warnings: " + "; ".join(warnings) + ".")
+    if confidence_notes:
+        cons.append("Score rationale: " + "; ".join(confidence_notes[:3]) + ".")
     if suspicious and suspicious != ["No major suspicious review pattern detected."]:
         cons.extend(suspicious[:2])
     if not cons:
