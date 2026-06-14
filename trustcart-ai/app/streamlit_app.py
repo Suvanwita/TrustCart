@@ -13,7 +13,13 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.aspects import extract_aspects
-from src.data_loader import filter_by_length, load_pasted_reviews, load_sample_data, load_uploaded_csv
+from src.data_loader import (
+    ReviewDataError,
+    filter_by_length,
+    load_pasted_reviews,
+    load_sample_data,
+    load_uploaded_csv_with_validation,
+)
 from src.emotion import analyze_emotion_with_pipeline, load_emotion_pipeline
 from src.fake_review import detect_fake_reviews
 from src.sentiment import analyze_sentiment_with_pipeline, load_sentiment_pipeline, sentiment_distribution
@@ -319,6 +325,7 @@ with st.sidebar:
     min_length = st.slider("Minimum review length (characters)", 0, 250, 0, 5)
 
 raw_df = pd.DataFrame(columns=["review", "rating"])
+data_warnings: list[str] = []
 
 try:
     if input_mode == "Paste text":
@@ -332,12 +339,16 @@ try:
     elif input_mode == "Upload CSV":
         uploaded = st.file_uploader("Reviews CSV file (required: review, optional: rating)", type=["csv"])
         if uploaded is not None:
-            raw_df = load_uploaded_csv(uploaded)
+            uploaded_result = load_uploaded_csv_with_validation(uploaded)
+            raw_df = uploaded_result["data"]
+            data_warnings = uploaded_result["warnings"]
     else:
         raw_df = load_sample_data(SAMPLE_DATA_PATH)
 
     filtered_df = filter_by_length(raw_df, min_length)
     st.subheader("Parsed Reviews")
+    for warning in data_warnings:
+        st.warning(warning)
     st.dataframe(filtered_df, width="stretch", hide_index=True)
 
     validate_reviews(filtered_df)
@@ -595,6 +606,8 @@ try:
     st.subheader("Detailed Review Analysis")
     st.dataframe(analysis_df, width="stretch", hide_index=True)
 
+except ReviewDataError as exc:
+    st.error(str(exc))
 except ValueError as exc:
     st.info(str(exc))
 except Exception as exc:
